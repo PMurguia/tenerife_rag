@@ -1,0 +1,31 @@
+[project]
+name = "tenerife-rag"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "PMurguia", email = "peiomurguia@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "langchain-community>=0.4.2",
+    "langchain-core>=1.6.9",
+    "langchain-openai>=1.7.0",
+    "langchain-text-splitters>=1.1.3",
+    "numpy>=2.5.4",
+    "openai>=3.28.0",
+    "pymupdf>=1.28.2",
+    "python-dotenv>=1.2.4",
+]
+
+[project.scripts]
+tenerife-rag = "tenerife_rag:main"
+
+[build-system]
+requires = ["uv_build>=0.11.28,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "ipykernel>=7.4.0",
+]
