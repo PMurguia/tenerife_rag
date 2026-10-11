@@ -1,6 +1,6 @@
 from tenerife_rag.chunking import Chunk
 
-from langchain_community.vectorstores import InMemoryVectorStore
+from langchain_core.vectorstores import InMemoryVectorStore
 from langchain_core.embeddings import Embeddings
 
 def build_store(chunks: list[Chunk], embeddings: Embeddings, text_fn=Chunk.embed_text) -> InMemoryVectorStore:
