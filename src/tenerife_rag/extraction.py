@@ -34,7 +34,9 @@ def extract_lines(path: str) -> list[Line]:
                     if not text:
                         continue
                     x0, y0, *_ = raw["bbox"]
-                    lines.append(Line(page.number + 1, y0, x0, text, _is_bold(raw["spans"]), _detect_marker(text)))
+                    # real bullets are a span of their own; the word "o" ("or") inside a sentence is not a marker
+                    marker = _detect_marker(text) if raw["spans"][0]["text"].strip() in MARKERS else None
+                    lines.append(Line(page.number + 1, y0, x0, text, _is_bold(raw["spans"]), marker))
     return _merge_orphan_markers(sorted(lines, key=lambda line: (line.page, line.y)))
 
 
