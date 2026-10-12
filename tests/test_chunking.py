@@ -1,5 +1,9 @@
-from tenerife_rag.chunking import Chunk, _clean, _title, structural_chunks
-from tenerife_rag.extraction import Line
+from pathlib import Path
+
+import pytest
+
+from tenerife_rag.chunking import LINK_NOISE, Chunk, _clean, _title, structural_chunks
+from tenerife_rag.extraction import MARKER_X_RANGE, Line, extract_lines
 
 
 def test_header_joins_path_with_separator():
@@ -164,3 +168,43 @@ def test_lines_before_first_zone_are_ignored():
     chunks = structural_chunks([plain("TENERIFE – LUGARES DE INTERÉS", 73, bold=True), ZONE])
 
     assert chunks == []
+
+
+# --- regression on the real guide (C20) -------------------------------------
+
+GUIDE = Path(__file__).parents[1] / "src" / "tenerife_rag" / "data" / "TENERIFE.pdf"
+
+
+@pytest.fixture(scope="module")
+def guide_chunks() -> list[Chunk]:
+    if not GUIDE.exists():
+        pytest.skip("TENERIFE.pdf not available")
+    return structural_chunks(extract_lines(str(GUIDE)))
+
+
+def test_conjunction_o_does_not_open_a_chunk(guide_chunks):
+    gigantes = next(c for c in guide_chunks if c.header == "Zona Sur > Los Gigantes")
+
+    assert "visitad este enlace o buscad vosotros mismos" in gigantes.text
+    assert not any(c.text.startswith("buscad") for c in guide_chunks)
+
+
+def test_dash_and_its_text_are_one_line_with_marker(guide_chunks):
+    lines = extract_lines(str(GUIDE))
+
+    assert not any(line.text in MARKER_X_RANGE for line in lines)  # no bullet left alone on its row
+    aparcar = next(line for line in lines if "Aparcar en el aparcamiento" in line.text)
+    assert (aparcar.marker, aparcar.text[:9]) == ("-", "- Aparcar")
+
+
+def test_link_noise_is_removed(guide_chunks):
+    noisy = [c.id for c in guide_chunks for noise in LINK_NOISE if noise in c.text]
+
+    assert noisy == []
+
+
+def test_benijo_has_its_full_header(guide_chunks):
+    benijo = next(c for c in guide_chunks if "Playa de Benijo" in c.path)
+
+    assert benijo.header == "Zona Norte > Parque rural de Anaga > Playa de Benijo"
+    assert "arena negra" in benijo.text
