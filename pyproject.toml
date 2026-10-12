@@ -32,9 +32,11 @@ build-backend = "uv_build"
 dev = [
     "ipykernel>=7.4.0",
     "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
 filterwarnings = ["error"]
+asyncio_mode = "auto"

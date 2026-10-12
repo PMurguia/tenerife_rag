@@ -1,5 +1,6 @@
 from collections.abc import Callable
 from datetime import date
+from agents import MaxTurnsExceeded
 
 from agents import Agent, Model, Runner, RunResult
 
@@ -7,6 +8,8 @@ from tenerife_rag.chunking import Chunk
 from tenerife_rag.config import LLMConfig
 from tenerife_rag.tools import TurnContext, get_weather, search_tenerife_guide
 from tenerife_rag.weather import canary_today
+
+TURN_LIMIT_MESSAGE = "No he podido completar la respuesta. ¿Puedes concretar un poco más la pregunta?"
 
 DIAS = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
 
@@ -42,9 +45,14 @@ class TenerifeAssistant:
     
     async def ask(self, question: str) -> str:
         self.turn = TurnContext(self.store, self.weather)
-        self.last_result = await Runner.run(
-            self.agent,
-            question,
-            context=self.turn, max_turns=self.config.max_turns
-        )
+        
+        try:  
+            self.last_result = await Runner.run(
+                self.agent,
+                question,
+                context=self.turn, max_turns=self.config.max_turns
+            )
+        except MaxTurnsExceeded:
+            return TURN_LIMIT_MESSAGE
+        
         return self.last_result.final_output
