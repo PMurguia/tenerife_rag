@@ -1859,6 +1859,7 @@ dependencies = [
     { name = "pymupdf" },
     { name = "python-dotenv" },
     { name = "requests" },
+    { name = "tiktoken" },
     { name = "tzdata" },
 ]
 
@@ -1881,6 +1882,7 @@ requires-dist = [
     { name = "pymupdf", specifier = ">=1.28.2" },
     { name = "python-dotenv", specifier = ">=1.2.4" },
     { name = "requests", specifier = ">=2.34.2" },
+    { name = "tiktoken", specifier = ">=0.14.0" },
     { name = "tzdata", specifier = ">=2026.5" },
 ]
 
