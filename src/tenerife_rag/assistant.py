@@ -8,6 +8,7 @@ from tenerife_rag.chunking import Chunk
 from tenerife_rag.config import LLMConfig
 from tenerife_rag.tools import TurnContext, get_weather, search_tenerife_guide
 from tenerife_rag.weather import canary_today
+from tenerife_rag.memory import ConversationMemory
 
 TURN_LIMIT_MESSAGE = "No he podido completar la respuesta. ¿Puedes concretar un poco más la pregunta?"
 
@@ -38,6 +39,7 @@ class TenerifeAssistant:
         self.agent = build_agent(config, today_fn, model)
         self.turn = TurnContext(store, weather)
         self.last_result: RunResult | None = None
+        self.memory = ConversationMemory()
         
     @property
     def chunks_by_label(self) -> dict[str, Chunk]:
@@ -49,10 +51,11 @@ class TenerifeAssistant:
         try:  
             self.last_result = await Runner.run(
                 self.agent,
-                question,
+                [*self.memory.as_input(), {"role": "user", "content": question}],
                 context=self.turn, max_turns=self.config.max_turns
             )
         except MaxTurnsExceeded:
             return TURN_LIMIT_MESSAGE
         
+        self.memory.add(question, self.last_result.final_output)
         return self.last_result.final_output
