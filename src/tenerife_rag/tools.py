@@ -11,7 +11,7 @@ from tenerife_rag.chunking import Chunk
 from tenerife_rag.weather import WeatherService
 
 from datetime import date
-from typing import Annotated
+from typing import Annotated, Literal
 
 from agents import function_tool
 from pydantic import Field
@@ -20,6 +20,9 @@ from tenerife_rag.store import search
 from tenerife_rag.weather import PlaceId
 
 logger = logging.getLogger("tenerife_rag.tools")
+
+Zone = Literal["Zona Norte", "Zona Sur"]
+Category = Literal["comer", "visitar"]
 
 def log_tool_call(name: str, arguments: str, result: dict) -> None:
     logger.info("tool=%s args=%s ok=%s error=%s", name, arguments, result.get("ok"), result.get("error"))
@@ -53,15 +56,28 @@ def tool_failure(ctx: ToolContext[TurnContext], error: Exception) -> str:
     code = "argumentos_invalidos" if isinstance(error, ModelBehaviorError) else "error_interno"
     return _reply(ctx, {"ok": False, "error": code, "message": str(error)})
 
+def guide_filter(zona: Zone | None, categoria: Category | None):
+    if zona is None and categoria is None:
+        return None
+
+    def where(chunk: Chunk) -> bool:
+        if zona is not None and zona not in chunk.path:
+            return False
+        return categoria is None or (chunk.kind == "restaurante") == (categoria == "comer")
+
+    return where
+
 @function_tool(failure_error_function=tool_failure)
 def search_tenerife_guide(
     ctx: ToolContext[TurnContext],
     query: str,
-    k: Annotated[int, Field(ge=1, le=8)]
+    zona: Zone | None,
+    categoria: Category | None,
+    k: Annotated[int, Field(ge=1, le=8)],
 ) -> str:
     turn = ctx.context
     results = []
-    for chunk, _ in search(turn.store, query, k):
+    for chunk, _ in search(turn.store, query, k, where=guide_filter(zona, categoria)):
         label = turn.sources.setdefault(chunk.id, f"S{len(turn.sources)+1}")
         turn.chunks_by_label[label] = chunk
         results.append({"id": label, "texto": chunk.text, "cita": chunk.citation})
