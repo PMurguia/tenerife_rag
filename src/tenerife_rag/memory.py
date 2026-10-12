@@ -1,5 +1,8 @@
 from dataclasses import dataclass
 import tiktoken
+import re
+
+CITATION_RE = re.compile(r"\s*\[S\d+\]")
 
 @dataclass
 class Turn:
@@ -14,7 +17,7 @@ class ConversationMemory:
         self._encoding = tiktoken.get_encoding("o200k_base")
         
     def add(self, user: str, assistant: str) -> None:
-        self.turns.append(Turn(user, assistant))
+        self.turns.append(Turn(user, CITATION_RE.sub("", assistant)))
         self._trim()
         
     def as_input(self) -> list[dict]:
