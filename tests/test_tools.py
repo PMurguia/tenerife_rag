@@ -1,8 +1,14 @@
 import logging
+from pathlib import Path
+from typing import get_args
 
 import pytest
 
-from tenerife_rag.tools import log_tool_call, logger, setup_logging
+from conftest import FakeEmbeddings
+from tenerife_rag.chunking import Chunk, structural_chunks
+from tenerife_rag.extraction import extract_lines
+from tenerife_rag.store import build_store, search
+from tenerife_rag.tools import Category, Zone, guide_filter, log_tool_call, logger, setup_logging
 
 
 @pytest.fixture
@@ -70,3 +76,51 @@ def test_setup_logging_with_different_dirs_writes_to_both(tmp_path, restore_logg
 
     for name in ("a", "b"):
         assert len((tmp_path / name / "tool_calls.log").read_text(encoding="utf-8").splitlines()) == 1
+
+
+# --- zone / category filter -------------------------------------------------
+
+GUIDE = Path(__file__).parents[1] / "src" / "tenerife_rag" / "data" / "TENERIFE.pdf"
+
+
+def test_no_filter_returns_none():
+    assert guide_filter(None, None) is None
+
+
+def test_zone_matches_any_level_of_the_path():
+    restaurant = Chunk(id="1", text="...", kind="restaurante",
+                       path=["Otras vainas", "Sitios para comer", "Zona Norte", "La Baranda"])
+
+    assert guide_filter("Zona Norte", "comer")(restaurant)
+    assert not guide_filter("Zona Sur", None)(restaurant)
+
+
+def test_category_splits_restaurants_from_the_rest():
+    restaurant = Chunk(id="1", text="...", kind="restaurante", path=["Zona Norte"])
+    beach = Chunk(id="2", text="...", kind="poi", path=["Zona Norte"])
+
+    assert [guide_filter(None, "comer")(c) for c in (restaurant, beach)] == [True, False]
+    assert [guide_filter(None, "visitar")(c) for c in (restaurant, beach)] == [False, True]
+
+
+@pytest.fixture(scope="module")
+def guide_store():
+    if not GUIDE.exists():
+        pytest.skip("TENERIFE.pdf not available")
+    return build_store(structural_chunks(extract_lines(str(GUIDE))), FakeEmbeddings())
+
+
+@pytest.mark.parametrize("zona", get_args(Zone))
+def test_every_zone_filters_the_real_guide(guide_store, zona):
+    hits = search(guide_store, "playa", top_k=50, where=guide_filter(zona, None))
+
+    assert hits  # a renamed heading in the guide would silently empty the filter
+    assert all(zona in chunk.path for chunk, _ in hits)
+
+
+@pytest.mark.parametrize("categoria", get_args(Category))
+def test_every_category_filters_the_real_guide(guide_store, categoria):
+    hits = search(guide_store, "sitio", top_k=50, where=guide_filter(None, categoria))
+
+    assert hits
+    assert all((chunk.kind == "restaurante") == (categoria == "comer") for chunk, _ in hits)
