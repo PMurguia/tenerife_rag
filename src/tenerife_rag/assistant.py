@@ -39,7 +39,7 @@ class TenerifeAssistant:
         self.agent = build_agent(config, today_fn, model)
         self.turn = TurnContext(store, weather)
         self.last_result: RunResult | None = None
-        self.memory = ConversationMemory()
+        self.memory = ConversationMemory(config.history_token_budget)
         
     @property
     def chunks_by_label(self) -> dict[str, Chunk]:

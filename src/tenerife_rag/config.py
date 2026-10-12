@@ -14,7 +14,7 @@ class LLMConfig:
     temperature: float = 0.2
     top_p: float = 1.0
     max_output_tokens: int = 700
-    history_token_budget: int = 3000
+    history_token_budget: int = 2800
     max_turns: int = 4
     
     @classmethod
