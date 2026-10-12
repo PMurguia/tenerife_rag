@@ -1,5 +1,6 @@
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
-from typing import Callable
+
 from langchain_core.documents import Document
 
 

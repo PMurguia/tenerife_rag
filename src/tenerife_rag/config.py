@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 from openai import OpenAI
 from langchain_openai import OpenAIEmbeddings
+from agents import ModelSettings
 
 
 @dataclass
@@ -44,4 +45,11 @@ class LLMConfig:
         return OpenAIEmbeddings(
             model=self.embedding_model,
             api_key=self.api_key
+        )
+    
+    def model_settings(self) -> ModelSettings:
+        return ModelSettings(
+            temperature=self.temperature,
+            top_p=self.top_p,
+            max_output_tokens=self.max_output_tokens,
         )
