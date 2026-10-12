@@ -16,7 +16,7 @@ def turn_tokens(user: str, assistant: str) -> int:
 
 
 TURNS = [
-    ("¿Cómo es Benijo?", "Playa de arena negra con atardeceres [S1]."),
+    ("¿Cómo es Benijo?", "Playa de arena negra con atardeceres."),
     ("¿Y qué tiempo hará allí mañana?", "Despejado, 24 °C."),
     ("¿Y en el sur?", "Soleado en Costa Adeje, 27 °C."),
 ]
@@ -40,6 +40,14 @@ def test_as_input_alternates_user_and_assistant_in_order():
         {"role": "user", "content": TURNS[1][0]},
         {"role": "assistant", "content": TURNS[1][1]},
     ]
+
+
+def test_add_strips_citations_from_answer():
+    memory = ConversationMemory()
+
+    memory.add("¿Cómo es Benijo?", "Arena negra [S1] y atardeceres [S12].")
+
+    assert memory.turns[0].assistant == "Arena negra y atardeceres."
 
 
 def test_tokens_sums_every_turn():
@@ -97,7 +105,7 @@ async def test_ask_sends_history_and_stores_only_question_and_answer(config, sto
     messages = [(i["role"], i["content"]) for i in model.last_call.input if "role" in i]
     assert messages == [
         ("user", "¿Cómo es Benijo?"),
-        ("assistant", "Playa de arena negra [S1]."),
+        ("assistant", "Playa de arena negra."),  # previous turn's labels are not resent
         ("user", "¿Y qué tiempo hará allí mañana?"),
     ]
     assert assistant.memory.as_input()[-1] == {"role": "assistant", "content": "Despejado, 24 °C."}
