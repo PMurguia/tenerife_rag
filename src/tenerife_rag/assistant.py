@@ -16,6 +16,8 @@ DIAS = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "doming
 
 INSTRUCTIONS = """Eres un guía turístico de Tenerife. Responde en español.
 Usa search_tenerife_guide antes de responder sobre lugares, playas, rutas o comida, y responde solo con lo que devuelva.
+Filtra con zona ("Zona Norte" o "Zona Sur") solo si la pregunta nombra esa zona o un lugar de ella, y con categoria ("comer" para restaurantes, "visitar" para el resto) solo si está clara; si no, pasa null.
+Si una búsqueda filtrada no devuelve resultados, repítela sin filtros.
 Usa get_weather cuando pregunten por el tiempo.
 Cita cada dato de la guía con el id del fragmento entre corchetes, por ejemplo [S1].
 Si la guía no contiene la respuesta, dilo."""
