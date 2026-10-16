@@ -50,6 +50,14 @@ def test_add_strips_citations_from_answer():
     assert memory.turns[0].assistant == "Arena negra y atardeceres."
 
 
+def test_add_strips_grouped_citations():
+    memory = ConversationMemory()
+
+    memory.add("¿Cómo es Benijo?", "Arena negra [S1, S2] y atardeceres [S3; S4].")
+
+    assert memory.turns[0].assistant == "Arena negra y atardeceres."
+
+
 def test_tokens_sums_every_turn():
     memory = ConversationMemory()
     for user, assistant in TURNS:

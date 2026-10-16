@@ -61,7 +61,7 @@ def guide_filter(zona: Zone | None, categoria: Category | None):
         return None
 
     def where(chunk: Chunk) -> bool:
-        if zona is not None and zona not in chunk.path:
+        if zona is not None and chunk.path[:1] != [zona]:
             return False
         return categoria is None or (chunk.kind == "restaurante") == (categoria == "comer")
 

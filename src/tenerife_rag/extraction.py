@@ -58,6 +58,12 @@ def _merge_rows(fragments: list[_Fragment], tolerance: float = ROW_TOLERANCE) ->
     return merged
 
 
+def extract_pages(path: str) -> list[tuple[int, str]]:
+    """Texto plano de cada página, con su número (desde 1)."""
+    with pymupdf.open(path) as pdf:
+        return [(page.number + 1, page.get_text().strip()) for page in pdf]
+
+
 def extract_lines(path: str) -> list[Line]:
     fragments = []
     with pymupdf.open(path) as pdf:

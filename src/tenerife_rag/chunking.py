@@ -4,14 +4,17 @@ from dataclasses import asdict, dataclass, field
 import re
 
 from langchain_core.documents import Document
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-from tenerife_rag.extraction import Line
+from tenerife_rag.extraction import MARKER_X_RANGE, Line
 
 ZONES = {"ZONA NORTE": "Zona Norte", "ZONA SUR": "Zona Sur", "OTRAS VAINAS": "Otras vainas"}
 ROUTE_RE = re.compile(r"Aparcar|Caminar|Callejear|Al bajar|Al ir|En |Si vais")
 CURIOSITIES_RE = re.compile(r"Curiosidades:?$")
 LINK_NOISE = ["[vídeo - ubicación]", "[ubicación]", "[vídeo]", "[web]", "[Tripadvisor]", "(ubicación)"]
 TITLE_END_RE = re.compile(r"[(\[:,.]")
+ROUTE_TITLE_MAX = 50
+SECTION_X = MARKER_X_RANGE["•"][0]  # plain text left of the "•" bullets is outside any section
 
 @dataclass
 class Chunk:
@@ -54,6 +57,14 @@ def _title(body: str) -> str:
     return TITLE_END_RE.split(_clean(body), maxsplit=1)[0].strip()
 
 
+def _route_title(body: str) -> str:
+    """Los pasos de ruta son frases largas: el título se corta en una palabra."""
+    title = _title(body)
+    if len(title) <= ROUTE_TITLE_MAX:
+        return title
+    return title[:ROUTE_TITLE_MAX].rsplit(" ", 1)[0] + "…"
+
+
 @dataclass
 class _Chunker:
 
@@ -79,6 +90,8 @@ class _Chunker:
             self._place(line, body)
         elif line.marker == "▪":
             self._open(line, "restaurante", [self.zone, self.l1, self.l2, _title(body)], body)
+        elif line.x < SECTION_X and not line.bold:
+            self.section = self.current = None  # closing text of the guide
         elif self.current is not None:
             self._continue(line)
 
@@ -96,9 +109,13 @@ class _Chunker:
             self._append(body, line.page)
             self.indent = line.x
             return
-        self.l2 = _title(body)
-        kind = "ruta" if ROUTE_RE.match(body) else "poi"
-        self._open(line, kind, [self.zone, self.l1, self.l2], body)
+        if _title(body) in ZONES.values():
+            # "o Zona Norte" inside "Sitios para comer": the zone leads the path of the restaurants below
+            self.zone, self.l2, self.current = _title(body), None, self.section
+            return
+        is_route = ROUTE_RE.match(body) is not None
+        self.l2 = _route_title(body) if is_route else _title(body)
+        self._open(line, "ruta" if is_route else "poi", [self.zone, self.l1, self.l2], body)
 
     def _continue(self, line: Line) -> None:
         if self.current is not self.section and self.section is not None and line.x < self.indent:
@@ -115,6 +132,13 @@ class _Chunker:
         self.current.text += " " + text
         if page not in self.current.pages:
             self.current.pages.append(page)
+
+
+def window_chunks(pages: list[tuple[int, str]], chunk_size: int = 800, chunk_overlap: int = 150) -> list[Chunk]:
+    """Ventanas de tamaño fijo con solapamiento, sin ruta (la línea base de C22)."""
+    splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+    docs = splitter.split_documents([Document(page_content=text, metadata={"page": page}) for page, text in pages])
+    return [Chunk(id=str(i), text=doc.page_content, pages=[doc.metadata["page"]]) for i, doc in enumerate(docs)]
 
 
 def structural_chunks(lines: list[Line]) -> list[Chunk]:

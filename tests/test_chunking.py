@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from tenerife_rag.chunking import LINK_NOISE, Chunk, _clean, _title, structural_chunks
+from tenerife_rag.chunking import LINK_NOISE, Chunk, _clean, _title, structural_chunks, window_chunks
 from tenerife_rag.extraction import MARKER_X_RANGE, Line, extract_lines
 
 
@@ -69,6 +69,16 @@ def test_to_document_uses_custom_text_fn():
     doc = chunk.to_document(lambda c: c.text.upper())
 
     assert doc.page_content == "ARENA NEGRA."
+
+
+def test_window_chunks_split_pages_with_overlap_and_keep_the_page():
+    text = " ".join(f"palabra{i}" for i in range(60))
+
+    chunks = window_chunks([(3, text)], chunk_size=100, chunk_overlap=20)
+
+    assert len(chunks) > 1
+    assert all(c.kind == "ventana" and c.pages == [3] and len(c.text) <= 100 for c in chunks)
+    assert chunks[0].text.split()[-1] in chunks[1].text  # overlap
 
 
 # --- structural chunker -----------------------------------------------------
@@ -151,7 +161,7 @@ def test_less_indented_text_after_a_place_goes_back_to_section():
     assert chunks[0].pages == [1, 2]
 
 
-def test_restaurants_hang_from_the_place_above():
+def test_zone_subheading_leads_the_path_of_restaurants():
     chunks = structural_chunks([
         plain("OTRAS VAINAS", 73, bold=True),
         bullet("•", "Sitios para comer", 91),
@@ -159,9 +169,34 @@ def test_restaurants_hang_from_the_place_above():
         bullet("▪", "Pizzería Gioconda (zona de La Orotava [ubicación]) [Tripadvisor]", 163),
     ])
 
-    assert chunks[-1].kind == "restaurante"
-    assert chunks[-1].header == "Otras vainas > Sitios para comer > Zona Norte > Pizzería Gioconda"
+    assert [(c.kind, c.header) for c in chunks] == [
+        ("seccion", "Otras vainas > Sitios para comer"),  # no empty "Zona Norte" chunk
+        ("restaurante", "Zona Norte > Sitios para comer > Pizzería Gioconda"),
+    ]
     assert chunks[-1].text == "Pizzería Gioconda (zona de La Orotava)"
+
+
+def test_closing_text_at_the_left_margin_is_not_added_to_a_chunk():
+    chunks = structural_chunks([
+        ZONE,
+        bullet("•", "La Orotava", 91, bold=True),
+        bullet("▪", "Atuvera", 163),
+        plain("Un abrazo.", 71),
+        plain("Hasta pronto.", 109),
+    ])
+
+    assert all("abrazo" not in c.text and "pronto" not in c.text for c in chunks)
+
+
+def test_long_route_titles_are_cut_at_a_word():
+    chunks = structural_chunks([
+        ZONE,
+        bullet("•", "Isla Baja", 91, bold=True),
+        bullet("o", "En Icod de los Vinos ir hasta la Plaza de San Marcos y ver el Drago Milenario", 127),
+    ])
+
+    assert chunks[1].path[-1] == "En Icod de los Vinos ir hasta la Plaza de San…"
+    assert chunks[1].text.endswith("Drago Milenario")
 
 
 def test_lines_before_first_zone_are_ignored():

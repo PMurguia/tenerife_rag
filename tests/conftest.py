@@ -27,6 +27,12 @@ class FakeWeather:
     def get_weather(self, fecha: str, lugar: str | None = None) -> dict:
         return {"ok": True, "fecha": fecha, "lugar_id": lugar, "estado": "despejado", "temp_max_c": 12, "temp_min_c": 5}
 
+@pytest.fixture(autouse=True)
+def isolated_cwd(tmp_path, monkeypatch):
+    """Relative paths (logs/turns.jsonl, logs/tool_calls.log) land in a temp dir, not in the repo."""
+    monkeypatch.chdir(tmp_path)
+
+
 @pytest.fixture
 def embeddings() -> FakeEmbeddings:
     return FakeEmbeddings()
