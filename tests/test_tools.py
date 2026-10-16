@@ -87,12 +87,12 @@ def test_no_filter_returns_none():
     assert guide_filter(None, None) is None
 
 
-def test_zone_matches_any_level_of_the_path():
-    restaurant = Chunk(id="1", text="...", kind="restaurante",
-                       path=["Otras vainas", "Sitios para comer", "Zona Norte", "La Baranda"])
+def test_zone_is_the_first_level_of_the_path():
+    restaurant = Chunk(id="1", text="...", kind="restaurante", path=["Zona Norte", "Sitios para comer", "La Baranda"])
 
     assert guide_filter("Zona Norte", "comer")(restaurant)
     assert not guide_filter("Zona Sur", None)(restaurant)
+    assert not guide_filter("Zona Norte", None)(Chunk(id="2", text="...", path=[]))
 
 
 def test_category_splits_restaurants_from_the_rest():
@@ -115,7 +115,7 @@ def test_every_zone_filters_the_real_guide(guide_store, zona):
     hits = search(guide_store, "playa", top_k=50, where=guide_filter(zona, None))
 
     assert hits  # a renamed heading in the guide would silently empty the filter
-    assert all(zona in chunk.path for chunk, _ in hits)
+    assert all(chunk.path[0] == zona for chunk, _ in hits)
 
 
 @pytest.mark.parametrize("categoria", get_args(Category))
@@ -124,3 +124,9 @@ def test_every_category_filters_the_real_guide(guide_store, categoria):
 
     assert hits
     assert all((chunk.kind == "restaurante") == (categoria == "comer") for chunk, _ in hits)
+
+
+def test_northern_restaurants_are_found_by_zone_and_category(guide_store):
+    hits = search(guide_store, "restaurante", top_k=50, where=guide_filter("Zona Norte", "comer"))
+
+    assert len(hits) == 11
