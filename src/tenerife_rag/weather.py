@@ -76,7 +76,7 @@ PlaceId = Literal[
     "santa_cruz", "la_laguna", "anaga", "la_orotava", "puerto_de_la_cruz", "isla_baja",
     "teide", "costa_adeje", "los_gigantes", "masca", "el_medano", "los_cristianos",
 ]  # fmt: skip
-if set(get_args(PlaceId)) != set(PLACES):  # el Literal (schema/validación) y las coordenadas deben coincidir
+if set(get_args(PlaceId)) != set(PLACES):
     raise RuntimeError(f"PlaceId y PLACES no coinciden: {set(get_args(PlaceId)) ^ set(PLACES)}")
 
 WMO_CODES = {
@@ -105,7 +105,7 @@ class WeatherArgs(BaseModel):
         """Exige el formato AAAA-MM-DD y que la fecha exista."""
         if not ISO_DATE_RE.fullmatch(value):
             raise ValueError("formato AAAA-MM-DD")
-        date.fromisoformat(value)  # valida además que el día exista (p. ej. 2026-02-30)
+        date.fromisoformat(value)
         return value
 
 
@@ -135,8 +135,6 @@ class WeatherService:
         self.timeout = timeout
         self.retries = retries
         self.today_fn = today_fn
-
-    # ------------------------------------------------------------------ API pública
 
     def get_weather(self, fecha: str, lugar: str | None = None) -> dict[str, Any]:
         """Predicción diaria para una fecha y una zona de Tenerife."""
@@ -169,8 +167,6 @@ class WeatherService:
         if self.mode == "simulado":
             return self._simulated(target, place_id, place)
         return self._real(target, place_id, place)
-
-    # ------------------------------------------------------------------ modos
 
     def _real(self, target: date, place_id: str, place: Place) -> dict[str, Any]:
         params = {

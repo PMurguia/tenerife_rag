@@ -1,12 +1,14 @@
-from collections.abc import Callable
-from dataclasses import asdict, dataclass, field
+"""Troceo de la guía: chunks estructurales (por secciones del PDF) y ventanas de tamaño fijo."""
 
+import heapq
 import re
+from collections.abc import Callable, Sequence
+from dataclasses import asdict, dataclass, field
 
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-from tenerife_rag.extraction import MARKER_X_RANGE, Line
+from tenerife_rag.extraction import MARKER_X_RANGE, Line, PageImage
 
 ZONES = {"ZONA NORTE": "Zona Norte", "ZONA SUR": "Zona Sur", "OTRAS VAINAS": "Otras vainas"}
 ROUTE_RE = re.compile(r"Aparcar|Caminar|Callejear|Al bajar|Al ir|En |Si vais")
@@ -14,35 +16,43 @@ CURIOSITIES_RE = re.compile(r"Curiosidades:?$")
 LINK_NOISE = ["[vídeo - ubicación]", "[ubicación]", "[vídeo]", "[web]", "[Tripadvisor]", "(ubicación)"]
 TITLE_END_RE = re.compile(r"[(\[:,.]")
 ROUTE_TITLE_MAX = 50
-SECTION_X = MARKER_X_RANGE["•"][0]  # plain text left of the "•" bullets is outside any section
+SECTION_X = MARKER_X_RANGE["•"][0]
+
 
 @dataclass
 class Chunk:
     """Representa un fragmento de texto con metadatos asociados."""
+
     id: str
     text: str
     kind: str = "ventana"
     path: list[str] = field(default_factory=list)
     pages: list[int] = field(default_factory=list)
-    
+    images: list[int] = field(default_factory=list)  # xrefs of the photos that follow the chunk in the PDF
+
     @property
     def header(self) -> str:
+        """Ruta del chunk en la guía, por ejemplo "Zona Norte > Anaga > Playa de Benijo"."""
         return " > ".join(self.path)
-    
+
     def embed_text(self) -> str:
+        """Texto que se indexa: la cabecera seguida del texto."""
         return f"{self.header}\n{self.text}" if self.header else self.text
-    
+
     @property
     def citation(self) -> str:
+        """Ruta y páginas del chunk, para citarlo."""
         pages = "-".join(str(p) for p in sorted({self.pages[0], self.pages[-1]})) if self.pages else "?"
-        
+
         return f"{self.header or 'Fragmento ' + self.id} (p. {pages})"
-    
+
     def to_document(self, text_fn: Callable[["Chunk"], str] = embed_text) -> Document:
+        """El chunk como Document de LangChain; text_fn decide qué texto se indexa."""
         return Document(id=self.id, page_content=text_fn(self), metadata=asdict(self))
-    
+
     @classmethod
     def from_document(cls, doc: Document) -> "Chunk":
+        """Reconstruye el chunk a partir de los metadatos del Document."""
         return cls(**doc.metadata)
 
 
@@ -67,7 +77,6 @@ def _route_title(body: str) -> str:
 
 @dataclass
 class _Chunker:
-
     chunks: list[Chunk] = field(default_factory=list)
     zone: str | None = None
     l1: str | None = None
@@ -95,6 +104,10 @@ class _Chunker:
         elif self.current is not None:
             self._continue(line)
 
+    def attach(self, image: PageImage) -> None:
+        if self.current is not None:
+            self.current.images.append(image.xref)
+
     def _zone(self, line: Line) -> None:
         self.zone, self.l1, self.l2 = ZONES[line.text.upper()], None, None
         self.section = self.current = None
@@ -110,7 +123,6 @@ class _Chunker:
             self.indent = line.x
             return
         if _title(body) in ZONES.values():
-            # "o Zona Norte" inside "Sitios para comer": the zone leads the path of the restaurants below
             self.zone, self.l2, self.current = _title(body), None, self.section
             return
         is_route = ROUTE_RE.match(body) is not None
@@ -141,11 +153,17 @@ def window_chunks(pages: list[tuple[int, str]], chunk_size: int = 800, chunk_ove
     return [Chunk(id=str(i), text=doc.page_content, pages=[doc.metadata["page"]]) for i, doc in enumerate(docs)]
 
 
-def structural_chunks(lines: list[Line]) -> list[Chunk]:
+def structural_chunks(lines: list[Line], images: Sequence[PageImage] = ()) -> list[Chunk]:
+    """Un chunk por cada punto de interés, restaurante, ruta o sección de la guía.
+
+    Cada foto se asigna al chunk abierto cuando aparece en el orden de lectura (página, altura).
+    """
     chunker = _Chunker()
-    for line in lines:
-        chunker.feed(line)
+    for item in heapq.merge(lines, images, key=lambda item: (item.page, item.y)):
+        if isinstance(item, PageImage):
+            chunker.attach(item)
+        else:
+            chunker.feed(item)
     for chunk in chunker.chunks:
         chunk.text = _clean(chunk.text)
     return chunker.chunks
-        

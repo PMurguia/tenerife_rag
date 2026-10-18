@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from tenerife_rag.chunking import LINK_NOISE, Chunk, _clean, _title, structural_chunks, window_chunks
-from tenerife_rag.extraction import MARKER_X_RANGE, Line, extract_lines
+from tenerife_rag.extraction import MARKER_X_RANGE, Line, PageImage, extract_images, extract_lines
 
 
 def test_header_joins_path_with_separator():
@@ -81,9 +81,6 @@ def test_window_chunks_split_pages_with_overlap_and_keep_the_page():
     assert chunks[0].text.split()[-1] in chunks[1].text  # overlap
 
 
-# --- structural chunker -----------------------------------------------------
-
-
 def bullet(marker: str, text: str, x: float, page: int = 1, bold: bool = False) -> Line:
     return Line(page, 0.0, x, f"{marker} {text}", bold, marker)
 
@@ -107,12 +104,14 @@ def test_clean_removes_link_noise_and_space_before_punctuation():
 
 
 def test_bullets_build_zone_locality_and_place_path():
-    chunks = structural_chunks([
-        ZONE,
-        bullet("•", "Parque rural de Anaga", 91, bold=True),
-        bullet("o", "Playa de Benijo [vídeo - ubicación]", 127),
-        plain("Playa de arena negra.", 145),
-    ])
+    chunks = structural_chunks(
+        [
+            ZONE,
+            bullet("•", "Parque rural de Anaga", 91, bold=True),
+            bullet("o", "Playa de Benijo [vídeo - ubicación]", 127),
+            plain("Playa de arena negra.", 145),
+        ]
+    )
 
     assert [(c.kind, c.header) for c in chunks] == [
         ("seccion", "Zona Norte > Parque rural de Anaga"),
@@ -122,25 +121,29 @@ def test_bullets_build_zone_locality_and_place_path():
 
 
 def test_route_steps_are_detected_by_their_verb():
-    chunks = structural_chunks([
-        ZONE,
-        bullet("•", "San Cristóbal de La Laguna", 91, bold=True),
-        bullet("o", "Aparcar cerca de la Plaza de la Concepción", 127),
-    ])
+    chunks = structural_chunks(
+        [
+            ZONE,
+            bullet("•", "San Cristóbal de La Laguna", 91, bold=True),
+            bullet("o", "Aparcar cerca de la Plaza de la Concepción", 127),
+        ]
+    )
 
     assert chunks[1].kind == "ruta"
 
 
 def test_curiosities_are_grouped_in_one_chunk_until_text_goes_back_to_section():
-    chunks = structural_chunks([
-        ZONE,
-        bullet("•", "La Orotava", 91, bold=True),
-        plain("Curiosidades:", 109, bold=True),
-        bullet("o", "Es el municipio más alto de España.", 127),
-        bullet("o", "Tiene la alfombra de tierra más grande.", 127),
-        plain("A La Orotava pertenecen tres playas:", 109),
-        bullet("o", "Playa del Ancón", 127),
-    ])
+    chunks = structural_chunks(
+        [
+            ZONE,
+            bullet("•", "La Orotava", 91, bold=True),
+            plain("Curiosidades:", 109, bold=True),
+            bullet("o", "Es el municipio más alto de España.", 127),
+            bullet("o", "Tiene la alfombra de tierra más grande.", 127),
+            plain("A La Orotava pertenecen tres playas:", 109),
+            bullet("o", "Playa del Ancón", 127),
+        ]
+    )
 
     assert [c.kind for c in chunks] == ["seccion", "curiosidades", "poi"]
     assert chunks[1].text == "Es el municipio más alto de España. Tiene la alfombra de tierra más grande."
@@ -148,13 +151,15 @@ def test_curiosities_are_grouped_in_one_chunk_until_text_goes_back_to_section():
 
 
 def test_less_indented_text_after_a_place_goes_back_to_section():
-    chunks = structural_chunks([
-        ZONE,
-        bullet("•", "Costa Adeje", 91, bold=True),
-        bullet("o", "Playa del Camisón", 127),
-        plain("Esta es una playa pequeñita.", 145),
-        plain("Debéis ir al Siam Park.", 109, page=2),
-    ])
+    chunks = structural_chunks(
+        [
+            ZONE,
+            bullet("•", "Costa Adeje", 91, bold=True),
+            bullet("o", "Playa del Camisón", 127),
+            plain("Esta es una playa pequeñita.", 145),
+            plain("Debéis ir al Siam Park.", 109, page=2),
+        ]
+    )
 
     assert chunks[1].text == "Playa del Camisón Esta es una playa pequeñita."
     assert chunks[0].text.endswith("Debéis ir al Siam Park.")
@@ -162,12 +167,14 @@ def test_less_indented_text_after_a_place_goes_back_to_section():
 
 
 def test_zone_subheading_leads_the_path_of_restaurants():
-    chunks = structural_chunks([
-        plain("OTRAS VAINAS", 73, bold=True),
-        bullet("•", "Sitios para comer", 91),
-        bullet("o", "Zona Norte", 127, bold=True),
-        bullet("▪", "Pizzería Gioconda (zona de La Orotava [ubicación]) [Tripadvisor]", 163),
-    ])
+    chunks = structural_chunks(
+        [
+            plain("OTRAS VAINAS", 73, bold=True),
+            bullet("•", "Sitios para comer", 91),
+            bullet("o", "Zona Norte", 127, bold=True),
+            bullet("▪", "Pizzería Gioconda (zona de La Orotava [ubicación]) [Tripadvisor]", 163),
+        ]
+    )
 
     assert [(c.kind, c.header) for c in chunks] == [
         ("seccion", "Otras vainas > Sitios para comer"),  # no empty "Zona Norte" chunk
@@ -177,23 +184,27 @@ def test_zone_subheading_leads_the_path_of_restaurants():
 
 
 def test_closing_text_at_the_left_margin_is_not_added_to_a_chunk():
-    chunks = structural_chunks([
-        ZONE,
-        bullet("•", "La Orotava", 91, bold=True),
-        bullet("▪", "Atuvera", 163),
-        plain("Un abrazo.", 71),
-        plain("Hasta pronto.", 109),
-    ])
+    chunks = structural_chunks(
+        [
+            ZONE,
+            bullet("•", "La Orotava", 91, bold=True),
+            bullet("▪", "Atuvera", 163),
+            plain("Un abrazo.", 71),
+            plain("Hasta pronto.", 109),
+        ]
+    )
 
     assert all("abrazo" not in c.text and "pronto" not in c.text for c in chunks)
 
 
 def test_long_route_titles_are_cut_at_a_word():
-    chunks = structural_chunks([
-        ZONE,
-        bullet("•", "Isla Baja", 91, bold=True),
-        bullet("o", "En Icod de los Vinos ir hasta la Plaza de San Marcos y ver el Drago Milenario", 127),
-    ])
+    chunks = structural_chunks(
+        [
+            ZONE,
+            bullet("•", "Isla Baja", 91, bold=True),
+            bullet("o", "En Icod de los Vinos ir hasta la Plaza de San Marcos y ver el Drago Milenario", 127),
+        ]
+    )
 
     assert chunks[1].path[-1] == "En Icod de los Vinos ir hasta la Plaza de San…"
     assert chunks[1].text.endswith("Drago Milenario")
@@ -205,7 +216,29 @@ def test_lines_before_first_zone_are_ignored():
     assert chunks == []
 
 
-# --- regression on the real guide (C20) -------------------------------------
+def test_images_go_to_the_chunk_open_when_they_appear():
+    chunks = structural_chunks(
+        [
+            ZONE,
+            bullet("•", "Parque rural de Anaga", 91, bold=True),
+            bullet("o", "Playa de Benijo", 127),
+            bullet("o", "Mirador de La Jardina", 127, page=2),
+        ],
+        [PageImage(1, 300.0, 58), PageImage(2, 500.0, 50), PageImage(2, 600.0, 51)],
+    )
+
+    assert [(c.path[-1], c.images) for c in chunks] == [
+        ("Parque rural de Anaga", []),
+        ("Playa de Benijo", [58]),
+        ("Mirador de La Jardina", [50, 51]),
+    ]
+
+
+def test_images_before_the_first_chunk_are_dropped():
+    chunks = structural_chunks([bullet("o", "Playa de Benijo", 127, page=2)], [PageImage(1, 100.0, 5)])
+
+    assert all(c.images == [] for c in chunks)
+
 
 GUIDE = Path(__file__).parents[1] / "src" / "tenerife_rag" / "data" / "TENERIFE.pdf"
 
@@ -214,7 +247,7 @@ GUIDE = Path(__file__).parents[1] / "src" / "tenerife_rag" / "data" / "TENERIFE.
 def guide_chunks() -> list[Chunk]:
     if not GUIDE.exists():
         pytest.skip("TENERIFE.pdf not available")
-    return structural_chunks(extract_lines(str(GUIDE)))
+    return structural_chunks(extract_lines(str(GUIDE)), extract_images(str(GUIDE)))
 
 
 def test_conjunction_o_does_not_open_a_chunk(guide_chunks):
@@ -227,7 +260,7 @@ def test_conjunction_o_does_not_open_a_chunk(guide_chunks):
 def test_dash_and_its_text_are_one_line_with_marker(guide_chunks):
     lines = extract_lines(str(GUIDE))
 
-    assert not any(line.text in MARKER_X_RANGE for line in lines)  # no bullet left alone on its row
+    assert not any(line.text in MARKER_X_RANGE for line in lines)
     aparcar = next(line for line in lines if "Aparcar en el aparcamiento" in line.text)
     assert (aparcar.marker, aparcar.text[:9]) == ("-", "- Aparcar")
 
@@ -243,3 +276,11 @@ def test_benijo_has_its_full_header(guide_chunks):
 
     assert benijo.header == "Zona Norte > Parque rural de Anaga > Playa de Benijo"
     assert "arena negra" in benijo.text
+
+
+def test_every_guide_photo_belongs_to_one_chunk(guide_chunks):
+    attached = [xref for c in guide_chunks for xref in c.images]
+    benijo = next(c for c in guide_chunks if "Playa de Benijo" in c.path)
+
+    assert sorted(attached) == sorted(image.xref for image in extract_images(str(GUIDE)))
+    assert len(benijo.images) == 1
