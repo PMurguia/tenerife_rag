@@ -51,7 +51,7 @@ def evaluate(store: InMemoryVectorStore, questions: list[dict], ks: tuple[int, .
 
 
 def expected_date(spec: str, today: date) -> str:
-    """"+1" -> mañana respecto a today; una fecha ISO se deja tal cual."""
+    """ "+1" -> mañana respecto a today; una fecha ISO se deja tal cual."""
     return (today + timedelta(days=int(spec))).isoformat() if spec.startswith(("+", "-")) else spec
 
 
@@ -86,7 +86,7 @@ async def evaluate_assistant(
     runs: int = 3,
     today_fn: Callable[[], date] = canary_today,
 ) -> list[dict]:
-    """Cada caso `runs` veces: con temperatura > 0, una sola ejecución no dice nada."""
+    """Cada caso corre 'n' veces: con temperatura > 0, una sola ejecución no dice nada."""
     return [await run_case(make_assistant, case, today_fn()) for case in cases for _ in range(runs)]
 
 

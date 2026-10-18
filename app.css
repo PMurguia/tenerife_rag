@@ -1,0 +1,360 @@
+/* Visual layer of the Gradio interface (app.py). Palette: volcanic sunset over the Atlantic. */
+
+.gradio-container {
+  max-width: 1280px !important;
+  margin: 0 auto !important;
+}
+
+/* Header */
+.hero {
+  position: relative;
+  overflow: hidden;
+  padding: 32px 36px;
+  border-radius: 22px;
+  background: linear-gradient(120deg, #f97316 0%, #e11d48 38%, #7c3aed 68%, #1e3a8a 100%);
+  box-shadow: 0 14px 36px rgba(30, 58, 138, 0.28);
+  color: #fff;
+}
+
+.hero::after {
+  /* Teide silhouette */
+  content: "";
+  position: absolute;
+  right: -40px;
+  bottom: -2px;
+  width: 460px;
+  height: 120px;
+  background: rgba(15, 23, 42, 0.28);
+  clip-path: polygon(0 100%, 30% 62%, 44% 48%, 52% 18%, 58% 14%, 64% 30%, 76% 52%, 100% 100%);
+  pointer-events: none;
+}
+
+.hero h1 {
+  margin: 0 !important;
+  color: #fff !important;
+  font-size: 2.4rem !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.02em;
+}
+
+.hero p {
+  max-width: 640px;
+  margin: 8px 0 18px !important;
+  color: rgba(255, 255, 255, 0.92) !important;
+  font-size: 1.05rem;
+}
+
+.badges {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.badges span {
+  padding: 5px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(6px);
+  color: #fff !important;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+/* Cards */
+.card {
+  padding: 14px !important;
+  border: 1px solid var(--border-color-primary) !important;
+  border-radius: 18px !important;
+  background: var(--background-fill-primary) !important;
+  box-shadow: 0 6px 22px rgba(15, 23, 42, 0.07);
+}
+
+.card-title h3 {
+  margin: 2px 4px 10px !important;
+  font-size: 1rem !important;
+  font-weight: 700 !important;
+}
+
+.hint {
+  margin: 10px 4px 0 !important;
+  color: var(--body-text-color-subdued) !important;
+  font-size: 0.85rem;
+}
+
+/* Chat */
+#chat {
+  border: none !important;
+}
+
+/* No message actions: Gradio's "clear chat" icon duplicates the + button */
+#chat .icon-button-wrapper {
+  display: none !important;
+}
+
+/* Step-by-step trace of the turn */
+
+.trace-empty {
+  margin: 4px;
+  color: var(--body-text-color-subdued);
+  font-size: 0.85rem;
+}
+
+.trace {
+  position: relative;
+  max-height: 420px;
+  margin: 0 !important;
+  padding: 0 8px 0 4px !important;
+  overflow-y: auto;
+  list-style: none !important;
+}
+
+.step {
+  --step-color: #64748b;
+  position: relative;
+  margin: 0 !important;
+  padding: 0 0 12px 30px !important;
+}
+
+.step::before {
+  /* Line that joins the steps */
+  content: "";
+  position: absolute;
+  top: 22px;
+  bottom: 0;
+  left: 10px;
+  width: 2px;
+  background: var(--border-color-primary);
+}
+
+.step:last-child::before {
+  display: none;
+}
+
+.step-memoria { --step-color: #0ea5e9; }
+.step-llm { --step-color: #7c3aed; }
+.step-rag { --step-color: #f97316; }
+.step-tiempo { --step-color: #0891b2; }
+.step-respuesta { --step-color: #16a34a; }
+.step-fotos { --step-color: #e11d48; }
+.step-error,
+.step-failed { --step-color: #dc2626; }
+
+.step-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.86rem;
+}
+
+.step-n {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--step-color);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.step-kind {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--step-color) 14%, transparent);
+  color: var(--step-color);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.step-title {
+  font-weight: 600;
+}
+
+.step-ms {
+  margin-left: auto;
+  color: var(--body-text-color-subdued);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.step-details {
+  margin: 4px 0 0 !important;
+  padding: 0 !important;
+  list-style: none !important;
+}
+
+.step-details li {
+  margin: 0 !important;
+  padding: 1px 0 !important;
+  color: var(--body-text-color-subdued);
+  font-size: 0.8rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+/* Thinking bubble while the model works */
+.thinking {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--body-text-color-subdued);
+  font-style: italic;
+}
+
+.thinking .dots {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.thinking .dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  animation: thinking 1.2s infinite ease-in-out;
+}
+
+.thinking .dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.thinking .dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes thinking {
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+
+  40% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+.welcome {
+  max-width: 520px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.welcome .icon {
+  font-size: 2.6rem;
+  line-height: 1;
+}
+
+.welcome h3 {
+  margin: 10px 0 6px !important;
+  font-size: 1.35rem !important;
+}
+
+.welcome p {
+  color: var(--body-text-color-subdued) !important;
+}
+
+#composer {
+  align-items: center;
+  gap: 12px;
+}
+
+#ask textarea {
+  font-size: 1rem !important;
+}
+
+#ask .submit-button {
+  width: 36px;
+  height: 36px;
+  margin-left: 12px;
+  border-radius: 50%;
+  background: var(--button-primary-background-fill) !important;
+  color: #fff !important;
+}
+
+#ask .submit-button:hover {
+  background: var(--button-primary-background-fill-hover) !important;
+}
+
+/* "New conversation": square "+" button with a tooltip on hover */
+#new-chat {
+  position: relative;
+  width: 52px !important;
+  height: 52px;
+  padding: 0 !important;
+  overflow: visible;
+  font-size: 1.6rem;
+  font-weight: 400;
+  line-height: 1;
+}
+
+#new-chat::after {
+  content: "Nueva conversación: borra el chat y las fotos y empieza sin memoria";
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 10px);
+  z-index: 10;
+  width: max-content;
+  max-width: 240px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #0f172a;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 500;
+  line-height: 1.35;
+  text-align: left;
+  white-space: normal;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.15s, transform 0.15s;
+  pointer-events: none;
+}
+
+#new-chat:hover::after,
+#new-chat:focus-visible::after {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Gallery */
+#photos {
+  border-radius: 14px !important;
+}
+
+#photos img {
+  border-radius: 12px;
+}
+
+.footer {
+  margin-top: 6px;
+  color: var(--body-text-color-subdued);
+  font-size: 0.82rem;
+  text-align: center;
+}
+
+@media (max-width: 760px) {
+  .hero {
+    padding: 24px 20px;
+  }
+
+  .hero h1 {
+    font-size: 1.8rem !important;
+  }
+
+  .hero::after {
+    display: none;
+  }
+}

@@ -2,8 +2,8 @@ from datetime import date
 
 import tiktoken
 from agents.testing import ScriptedModel, assistant_message
-
 from conftest import FakeWeather
+
 from tenerife_rag.assistant import TenerifeAssistant
 from tenerife_rag.config import LLMConfig
 from tenerife_rag.memory import ConversationMemory
@@ -101,10 +101,12 @@ def test_assistant_uses_budget_from_config(store):
 
 
 async def test_ask_sends_history_and_stores_only_question_and_answer(config, store):
-    model = ScriptedModel([
-        [assistant_message("Playa de arena negra [S1].")],
-        [assistant_message("Despejado, 24 °C.")],
-    ])
+    model = ScriptedModel(
+        [
+            [assistant_message("Playa de arena negra [S1].")],
+            [assistant_message("Despejado, 24 °C.")],
+        ]
+    )
     assistant = TenerifeAssistant(config, store, FakeWeather(), model=model, today_fn=lambda: date(2026, 10, 9))
 
     await assistant.ask("¿Cómo es Benijo?")
@@ -113,7 +115,7 @@ async def test_ask_sends_history_and_stores_only_question_and_answer(config, sto
     messages = [(i["role"], i["content"]) for i in model.last_call.input if "role" in i]
     assert messages == [
         ("user", "¿Cómo es Benijo?"),
-        ("assistant", "Playa de arena negra."),  # previous turn's labels are not resent
+        ("assistant", "Playa de arena negra."),
         ("user", "¿Y qué tiempo hará allí mañana?"),
     ]
     assert assistant.memory.as_input()[-1] == {"role": "assistant", "content": "Despejado, 24 °C."}

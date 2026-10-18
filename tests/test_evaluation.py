@@ -2,8 +2,8 @@ from datetime import date
 
 import pytest
 from agents.testing import ScriptedModel, assistant_message, function_call
-
 from conftest import FakeWeather
+
 from tenerife_rag.assistant import TenerifeAssistant
 from tenerife_rag.chunking import Chunk
 from tenerife_rag.evaluation import (
@@ -19,8 +19,14 @@ from tenerife_rag.evaluation import (
 from tenerife_rag.store import build_store
 
 TODAY = date(2026, 10, 9)
-PLAN = {"id": "plan", "pregunta": "¿Atardecer en Benijo mañana?", "herramientas": ["search_tenerife_guide", "get_weather"],
-        "fecha": "+1", "palabras": ["Benijo"], "cita": True}
+PLAN = {
+    "id": "plan",
+    "pregunta": "¿Atardecer en Benijo mañana?",
+    "herramientas": ["search_tenerife_guide", "get_weather"],
+    "fecha": "+1",
+    "palabras": ["Benijo"],
+    "cita": True,
+}
 
 
 def test_first_relevant_rank_ignores_case_and_line_breaks():
@@ -31,10 +37,13 @@ def test_first_relevant_rank_ignores_case_and_line_breaks():
 
 
 def test_evaluate_computes_hit_at_k_and_mrr(embeddings):
-    store = build_store([
-        Chunk(id="1", text="playa de arena negra en benijo"),
-        Chunk(id="2", text="pizzeria en la orotava"),
-    ], embeddings)
+    store = build_store(
+        [
+            Chunk(id="1", text="playa de arena negra en benijo"),
+            Chunk(id="2", text="pizzeria en la orotava"),
+        ],
+        embeddings,
+    )
     questions = [
         {"pregunta": "playa de arena negra", "esperado": "benijo"},  # rank 1
         {"pregunta": "playa de arena negra", "esperado": "pizzeria"},  # rank 2
@@ -72,17 +81,20 @@ def test_eval_sets_are_well_formed():
     questions = load_cases("questions.json")
     cases = load_cases("assistant_cases.json")
 
-    assert len(questions) >= 20 and all({"id", "pregunta", "esperado"} <= q.keys() for q in questions)
+    assert len(questions) >= 20
+    assert all({"id", "pregunta", "esperado"} <= q.keys() for q in questions)
     assert len({c["id"] for c in cases}) == len(cases) >= 8
     assert (EVAL_DIR / "questions.json").exists()
 
 
 async def test_evaluate_assistant_runs_each_case_in_a_new_conversation(config, store):
-    model = ScriptedModel([
-        [function_call("get_weather", {"fecha": "2026-10-10", "lugar": "teide"}, call_id="call_1")],
-        [assistant_message("Despejado en el Teide.")],
-        [assistant_message("No lo sé.")],
-    ])
+    model = ScriptedModel(
+        [
+            [function_call("get_weather", {"fecha": "2026-10-10", "lugar": "teide"}, call_id="call_1")],
+            [assistant_message("Despejado en el Teide.")],
+            [assistant_message("No lo sé.")],
+        ]
+    )
     case = {"id": "teide", "pregunta": "¿Tiempo mañana en el Teide?", "herramientas": ["get_weather"], "fecha": "+1"}
     assistants = []
 
@@ -94,4 +106,5 @@ async def test_evaluate_assistant_runs_each_case_in_a_new_conversation(config, s
 
     assert [r["ok"] for r in results] == [True, False]
     assert pass_rates(results) == {"teide": 0.5}
-    assert len(assistants) == 2 and all(len(a.memory.turns) == 1 for a in assistants)
+    assert len(assistants) == 2
+    assert all(len(a.memory.turns) == 1 for a in assistants)

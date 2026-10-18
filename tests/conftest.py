@@ -10,6 +10,7 @@ from tenerife_rag.store import build_store
 
 set_tracing_disabled(True)
 
+
 class FakeEmbeddings(Embeddings):
     """Deterministic bag-of-words embeddings: texts sharing words end up close."""
 
@@ -22,10 +23,11 @@ class FakeEmbeddings(Embeddings):
             vector[int(hashlib.md5(word.encode()).hexdigest(), 16) % 256] += 1
         return vector
 
-class FakeWeather:
 
+class FakeWeather:
     def get_weather(self, fecha: str, lugar: str | None = None) -> dict:
         return {"ok": True, "fecha": fecha, "lugar_id": lugar, "estado": "despejado", "temp_max_c": 12, "temp_min_c": 5}
+
 
 @pytest.fixture(autouse=True)
 def isolated_cwd(tmp_path, monkeypatch):
@@ -37,14 +39,20 @@ def isolated_cwd(tmp_path, monkeypatch):
 def embeddings() -> FakeEmbeddings:
     return FakeEmbeddings()
 
+
 @pytest.fixture
 def config() -> LLMConfig:
     return LLMConfig()
 
+
 @pytest.fixture
 def store(embeddings):
     chunks = [
-        Chunk(id="benijo", text="Playa de Benijo, arena negra y atardeceres.",
-              path=["Zona Norte", "Anaga", "Playa de Benijo"], pages=[8]),
+        Chunk(
+            id="benijo",
+            text="Playa de Benijo, arena negra y atardeceres.",
+            path=["Zona Norte", "Anaga", "Playa de Benijo"],
+            pages=[8],
+        ),
     ]
     return build_store(chunks, embeddings)

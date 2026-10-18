@@ -1,26 +1,29 @@
 import logging
+from datetime import date
 from pathlib import Path
 from typing import get_args
 
 import pytest
-
+import requests
 from conftest import FakeEmbeddings
+
 from tenerife_rag.chunking import Chunk, structural_chunks
 from tenerife_rag.extraction import extract_lines
 from tenerife_rag.store import build_store, search
-from tenerife_rag.tools import Category, Zone, guide_filter, log_tool_call, logger, setup_logging
+from tenerife_rag.tools import Category, Zone, guide_filter, log_tool_call, logger, package_logger, setup_logging
+from tenerife_rag.weather import WeatherService
 
 
 @pytest.fixture
 def restore_logger():
-    """Undo the handlers and level that setup_logging adds to the module logger."""
-    handlers, level = list(logger.handlers), logger.level
+    """Undo the handlers and level that setup_logging adds to the package logger."""
+    handlers, level = list(package_logger.handlers), package_logger.level
     yield
-    for handler in logger.handlers:
+    for handler in package_logger.handlers:
         if handler not in handlers:
             handler.close()
-    logger.handlers = handlers
-    logger.setLevel(level)
+    package_logger.handlers = handlers
+    package_logger.setLevel(level)
 
 
 def test_log_tool_call_logs_success(caplog):
@@ -58,6 +61,20 @@ def test_setup_logging_writes_tool_calls_to_file(tmp_path, restore_logger):
     assert lines[0].endswith(" - INFO - tool=get_weather args={} ok=False error=timeout")
 
 
+def test_setup_logging_writes_weather_retries_to_file(tmp_path, restore_logger):
+    def timeout(url, **kwargs):
+        raise requests.Timeout("slow")
+
+    setup_logging(tmp_path)
+    WeatherService(http_get=timeout, today_fn=lambda: date(2026, 10, 9)).get_weather("2026-10-10")
+
+    lines = (tmp_path / "tool_calls.log").read_text(encoding="utf-8").splitlines()
+    assert [line.split(" - ", 1)[1] for line in lines] == [
+        "WARNING - Intento 1 de Open-Meteo fallido: Open-Meteo no respondió a tiempo.",
+        "WARNING - Intento 2 de Open-Meteo fallido: Open-Meteo no respondió a tiempo.",
+    ]
+
+
 def test_setup_logging_twice_does_not_duplicate_lines(tmp_path, restore_logger):
     setup_logging(tmp_path)
     setup_logging(tmp_path)
@@ -77,8 +94,6 @@ def test_setup_logging_with_different_dirs_writes_to_both(tmp_path, restore_logg
     for name in ("a", "b"):
         assert len((tmp_path / name / "tool_calls.log").read_text(encoding="utf-8").splitlines()) == 1
 
-
-# --- zone / category filter -------------------------------------------------
 
 GUIDE = Path(__file__).parents[1] / "src" / "tenerife_rag" / "data" / "TENERIFE.pdf"
 
@@ -114,7 +129,7 @@ def guide_store():
 def test_every_zone_filters_the_real_guide(guide_store, zona):
     hits = search(guide_store, "playa", top_k=50, where=guide_filter(zona, None))
 
-    assert hits  # a renamed heading in the guide would silently empty the filter
+    assert hits
     assert all(chunk.path[0] == zona for chunk, _ in hits)
 
 
